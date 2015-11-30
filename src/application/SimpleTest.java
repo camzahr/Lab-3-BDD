@@ -125,6 +125,8 @@ public class SimpleTest {
     check("transfer(1, 2, 500)", manager.transfer(1, 2, 500)==true);//Account would be <0
     check("transfer(1, 2, -500)", manager.transfer(1, 2, -500)==false);//Account would be <0
     
+    check("listOperation(15)", manager.getOperations(15, null, null)==null);//Account would be <0
+    
     /*
     check("transfer(1, 2, 500)", manager.transfer(1, 2, 500)==false);//Account would be <0
     check("transfer (50, 2, 50)", manager.transfer(50, 2, 50)==false); //Account 50 doesn't exist
@@ -192,6 +194,7 @@ public class SimpleTest {
 
       // you may add some tests here:
       // TODO
+      System.out.println("MANAGER : " + manager.getOperations(1, null, null));
 
     } catch (Exception e) {
 

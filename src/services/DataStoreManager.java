@@ -300,22 +300,28 @@ public class DataStoreManager {
    */
   public List<Operation> getOperations(int number, Date from, Date to)
           throws DataStoreException {
+	  List<Operation> list = null;
+	  
+	  java.sql.Date date;
+	  
 	  try {
-		  PreparedStatement get_balance 	= myCon.prepareStatement("SELECT accounts SET solde = ? WHERE aid = ?");
-			add_balance.setInt(1, number);
-			ResultSet result = this.get_operations.executeQuery();
+		  PreparedStatement get_operations 	= myCon.prepareStatement("SELECT * FROM operation WHERE account_id = "+number);
 			
-			result.beforeFirst();
+			ResultSet result = get_operations.executeQuery();
+			
+			
 			while (result.next()){
 				if(from==null)
 					from=new Date(1800, 01, 01, 0, 0, 0);
 				if(to==null)
 					to= new Date();
 					//to=new Date(2500, 12, 30, 23, 59,59);
+				System.out.println("Date : "+result.getDate(4) + " / "+to);
 				
-				if(result.getDate(date).before(to) && result.getDate(date).after(from))
+				if(result.getDate(4).before(to) && result.getDate(4).after(from))
 				{
-					list.add(new Operation(result.getInt(id), result.getDouble(amount), result.getDate(date)));
+					System.out.println("TRUE");
+					list.add(new Operation(result.getInt(1), result.getDouble(3), result.getDate(4)));
 				}
 			}
 			
@@ -326,6 +332,7 @@ public class DataStoreManager {
 			throw new DataStoreException(e);
 		}
 		return list;
+	 
   }
 
   /**
