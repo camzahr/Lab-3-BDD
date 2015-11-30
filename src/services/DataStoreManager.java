@@ -26,17 +26,40 @@ public class DataStoreManager {
   // ...
 
   // example of a create table statement executed by createDB()
-  private static final String CREATE_TABLE_DUMMY = "create table DUMMY ("
-          + "ATT int, " + "primary key (ATT)" + ")";
-  private static final String DROP_TABLE_ACCOUNT = "DROP TABLE IF EXISTS account";
-  private static final String DROP_TABLE_OPERATION = "DROP TABLE IF EXISTS operation";
-  private static final String DROP_TRIGGER_CHECK_UPDATE = "DROP TRIGGER IF EXISTS check_update";
-  private static final String DROP_TRIGGER_INSERT_OPERATION = "DROP TRIGGER IF EXISTS insert_operation";
+  
+	private static final String CREATE_TABLE_ACCOUNT = "CREATE TABLE account ("
+			+ "aid INTEGER NULL," + "balance DOUBLE,"
+			+ "PRIMARY KEY (aid)) ENGINE=InnoDB;";
 
-  private static final String CREATE_TABLE_OPERATION = "create table operation ("
-          + "ATT int, " + "primary key (ATT)" + ")";
-  private static final String CREATE_TABLE_ACCOUNT = "create table operation ("
-          + "ATT int, " + "primary key (ATT)" + ")";
+	private static final String CREATE_TABLE_OPERATION = "CREATE TABLE operation ("
+			+ "oid INTEGER NOT NULL AUTO_INCREMENT,"
+			+ "account_id INTEGER NULL,"
+			+ "amount DOUBLE,"
+			+ "date TIMESTAMP,"
+			+ "PRIMARY KEY (oid),"
+			+ "FOREIGN KEY (account_id) REFERENCES account(aid) "
+			+ "ON DELETE CASCADE" + ") ENGINE=InnoDB;";
+
+	private static final String TRIGGERS_TABLE_CHECK_BALANCE = "CREATE TRIGGER check_balance BEFORE UPDATE "
+			+ "ON account FOR EACH ROW "
+			+ "BEGIN "
+			+ "IF NEW.balance < 0 "
+			+ "THEN "
+			+ "SIGNAL SQLSTATE '11111' "
+			+ "SET MESSAGE_TEXT = 'Impossible transaction !';"
+			+ "END IF;"
+			+ "END";
+
+	private static final String TRIGGERS_TABLE_INSERT_OPERATION = "CREATE TRIGGER insert_operation AFTER UPDATE "
+			+ "ON account FOR EACH ROW "
+			+ "BEGIN "
+			+ "INSERT INTO operation (account_id, amount) VALUE (NEW.aid, NEW.balance - OLD.balance); "
+			+ "END";
+
+	private static final String DROP_TABLE_OPERATION = "DROP TABLE IF EXISTS operation";
+	private static final String DROP_TABLE_ACCOUNT = "DROP TABLE IF EXISTS account";
+	private static final String DROP_TRIGGER_CHECK_UPDATE = "DROP TRIGGER IF EXISTS check_balance";
+	private static final String DROP_TRIGGER_INSERT_OPERATION = "DROP TRIGGER IF EXISTS insert_operation";
 
   /**
    * Creates a new <code>DataStoreManager</code> object that connects to the
@@ -87,10 +110,28 @@ public class DataStoreManager {
   public void createDB() throws DataStoreException {
 	  try {
 		Statement stat1 = myCon.createStatement();
-		PreparedStatement dropTable = myCon.prepareStatement(DROP_TABLE_ACCOUNT); 
+		
+		//DROP TRIGGER
+		PreparedStatement dropTrigger = myCon.prepareStatement(DROP_TRIGGER_CHECK_UPDATE); 
+		dropTrigger.executeUpdate();
+		PreparedStatement dropTrigger1 = myCon.prepareStatement(DROP_TRIGGER_INSERT_OPERATION); 
+		dropTrigger1.executeUpdate();
+		
+		//DROP TABLES
 		PreparedStatement dropTable1 = myCon.prepareStatement(DROP_TABLE_OPERATION); 
+		dropTable1.executeUpdate();
+		PreparedStatement dropTable = myCon.prepareStatement(DROP_TABLE_ACCOUNT); 
+		dropTable.executeUpdate();
+
+		//CREATE DB
+		stat1.executeUpdate(CREATE_TABLE_ACCOUNT);
+		stat1.executeUpdate(CREATE_TABLE_OPERATION);
+		stat1.executeUpdate(TRIGGERS_TABLE_CHECK_BALANCE);
+		stat1.executeUpdate(TRIGGERS_TABLE_INSERT_OPERATION);
+		
 	} catch (SQLException e) {
 		e.printStackTrace();
+		throw new DataStoreException(e);
 	}
 	  
   }
@@ -108,8 +149,18 @@ public class DataStoreManager {
    *
    */
   public boolean createAccount(int number) throws DataStoreException {
-    // TODO Auto-generated method stub
-    return false;
+	  try {
+		Statement stat1 = myCon.createStatement();
+		stat1.execute("INSERT INTO `account` (`aid`, `balance`) VALUES ("+number+", 0)");
+		return true;
+	} catch (SQLException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+		throw new DataStoreException(e);
+	}
+    
+    
+    
   }
 
   /**
@@ -122,8 +173,28 @@ public class DataStoreManager {
    *           if an unrecoverable error occurs
    */
   public double getBalance(int number) throws DataStoreException {
-    // TODO Auto-generated method stub
-    return 0;
+	  double balance = 0;
+
+		try {
+			
+			PreparedStatement getBalance = myCon.prepareStatement("SELECT balance FROM account WHERE aid = ?");
+			getBalance.setInt(1, number);
+			ResultSet result = getBalance.executeQuery();
+
+			//result.beforeFirst();
+			while (result.next()) { // If we don't enter the while it means there is no account with this id -> Return -1.0
+
+				return result.getDouble("balance"); // Getting the value of the "solde" and return It
+				 
+			}
+			result.close();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			throw new DataStoreException(e);
+		}
+		
+		return -1.0; // It Failed
   }
 
   /**
@@ -141,8 +212,30 @@ public class DataStoreManager {
    *           if an unrecoverable error occurs
    */
   public double addBalance(int number, double amount) throws DataStoreException {
-    // TODO Auto-generated method stub
-    return 0;
+	  
+		try {
+			PreparedStatement add_balance = myCon.prepareStatement("UPDATE account SET balance = ? WHERE aid = ?");
+			double newBalance = 0;
+			newBalance = this.getBalance(number) + amount;
+			//System.out.println("New balance : "+newBalance);
+			add_balance.setDouble(1, newBalance);
+			add_balance.setInt(2, number);
+			add_balance.executeUpdate();
+			
+			newBalance = this.getBalance(number);
+			System.out.println("New balance AFTER : "+newBalance);
+			double balance=this.getBalance(number);
+			if (balance<0)
+				return -1.0;
+			else 
+				return balance;
+				
+			//connexion.commit();
+		} catch (SQLException e) {
+			throw new DataStoreException(e);
+			
+			
+		}
   }
 
   /**
@@ -161,8 +254,32 @@ public class DataStoreManager {
    */
   public boolean transfer(int from, int to, double amount)
           throws DataStoreException {
-    // TODO Auto-generated method stub
-    return false;
+	  
+		if(amount<0)
+		{
+			return false;
+		}
+			
+		
+		else if (this.getBalance(from)>amount){
+			
+				if (this.addBalance(from, (-1)*amount)<0)
+				{
+					return false;
+				}
+					
+							
+				//Only if withdrawal succeeds
+				else{
+					if (this.addBalance(to, amount)>0)
+						return true;
+					
+				}
+			
+		} 
+	
+		return false;
+		
   }
 
   /**
@@ -183,8 +300,32 @@ public class DataStoreManager {
    */
   public List<Operation> getOperations(int number, Date from, Date to)
           throws DataStoreException {
-    // TODO Auto-generated method stub
-    return null;
+	  try {
+		  PreparedStatement get_balance 	= myCon.prepareStatement("SELECT accounts SET solde = ? WHERE aid = ?");
+			add_balance.setInt(1, number);
+			ResultSet result = this.get_operations.executeQuery();
+			
+			result.beforeFirst();
+			while (result.next()){
+				if(from==null)
+					from=new Date(1800, 01, 01, 0, 0, 0);
+				if(to==null)
+					to= new Date();
+					//to=new Date(2500, 12, 30, 23, 59,59);
+				
+				if(result.getDate(date).before(to) && result.getDate(date).after(from))
+				{
+					list.add(new Operation(result.getInt(id), result.getDouble(amount), result.getDate(date)));
+				}
+			}
+			
+			result.close();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			throw new DataStoreException(e);
+		}
+		return list;
   }
 
   /**

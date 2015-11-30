@@ -117,7 +117,22 @@ public class SimpleTest {
     // TODO complete the test
 
     // example of test, using method check(String, boolean):
-    check("createAccount(0)", manager.createAccount(0) == true);
+    check("createAccount(11)", manager.createAccount(11) == true);
+    check("getBalance(1)", manager.getBalance(1)==0); // If the correct amount has been add
+    check("addBalance(1, 10000)", manager.addBalance(1,10000)>=0);//If >0 --> addBalance worked
+    check("addBalance(1, 100)", manager.addBalance(1,100)>=0);//If >0 --> addBalance worked
+    check("addBalance(1, -100)", manager.addBalance(1,-100)>=0);//If >0 --> addBalance worked
+    check("transfer(1, 2, 500)", manager.transfer(1, 2, 500)==true);//Account would be <0
+    check("transfer(1, 2, -500)", manager.transfer(1, 2, -500)==false);//Account would be <0
+    
+    /*
+    check("transfer(1, 2, 500)", manager.transfer(1, 2, 500)==false);//Account would be <0
+    check("transfer (50, 2, 50)", manager.transfer(50, 2, 50)==false); //Account 50 doesn't exist
+    check("addBalance(1, 10000)", manager.addBalance(1,10000)>=0);//If >0 --> addBalance worked
+    
+    check("transfer (1, 2, 500)", manager.transfer(1, 2, 500)==true); //Now works thanks to the previous add of 10000
+    check("getBalance(2)", manager.getBalance(2)==500); // If the correct amount has been add
+    check("getBalance(1)", manager.getBalance(1)==9500); // If the correct amount has been removed*/
 
   }
 
