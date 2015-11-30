@@ -1,6 +1,9 @@
 package services;
 
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
 
 import model.Operation;
@@ -300,7 +303,7 @@ public class DataStoreManager {
    */
   public List<Operation> getOperations(int number, Date from, Date to)
           throws DataStoreException {
-	  List<Operation> list = null;
+	  List<Operation> list = new ArrayList<Operation>();
 	  
 	  java.sql.Date date;
 	  
@@ -311,16 +314,22 @@ public class DataStoreManager {
 			
 			
 			while (result.next()){
-				if(from==null)
-					from=new Date(1800, 01, 01, 0, 0, 0);
+				if(from==null) {
+				 Calendar c1 = GregorianCalendar.getInstance();
+					c1.set(2000, 1, 30);
+					from = c1.getTime();
+				}
+					
 				if(to==null)
-					to= new Date();
-					//to=new Date(2500, 12, 30, 23, 59,59);
-				System.out.println("Date : "+result.getDate(4) + " / "+to);
+				{
+					Calendar c1 = GregorianCalendar.getInstance();
+					c1.set(Calendar.HOUR_OF_DAY, 0);
+					to = c1.getTime();
+				}
+					
 				
 				if(result.getDate(4).before(to) && result.getDate(4).after(from))
 				{
-					System.out.println("TRUE");
 					list.add(new Operation(result.getInt(1), result.getDouble(3), result.getDate(4)));
 				}
 			}
